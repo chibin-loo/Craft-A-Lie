@@ -1,5 +1,6 @@
 package com.artlu.craftalie;
 
+import net.minecraft.server.level.ServerPlayer;
 import static net.minecraft.commands.Commands.literal;
 
 import com.artlu.craftalie.game.GameManager;
@@ -27,6 +28,7 @@ public final class CraftALieCommands {
                 .then(literal("start").executes(CraftALieCommands::start))
                 .then(literal("stop").executes(CraftALieCommands::stop))
                 .then(literal("status").executes(CraftALieCommands::status))
+                .then(literal("role").executes(CraftALieCommands::role))
         );
     }
 
@@ -39,10 +41,18 @@ public final class CraftALieCommands {
 
     private static int start(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
+
         if (GameManager.isRunning()) {
             source.sendFailure(Component.literal("A game is already running. Use /craftalie stop first."));
             return 0;
         }
+
+        int playerCount = source.getServer().getPlayerList().getPlayers().size();
+        if (playerCount < GameManager.MIN_PLAYERS) {
+            source.sendFailure(Component.literal("Need at least " + GameManager.MIN_PLAYERS + " players to start."));
+            return 0;
+        }
+
         GameManager.start(source.getServer());
         return 1;
     }
@@ -62,6 +72,21 @@ public final class CraftALieCommands {
             () -> Component.literal("Phase: " + GameManager.getPhase() + " | Round: " + GameManager.getRound()),
             false
         );
+        return 1;
+    }
+
+    private static int role(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("Only players can use this."));
+            return 0;
+        }
+        if (!GameManager.isRunning()) {
+            source.sendFailure(Component.literal("No game is running."));
+            return 0;
+        }
+        GameManager.revealRole(player);
         return 1;
     }
 }
