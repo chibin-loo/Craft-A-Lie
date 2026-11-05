@@ -10,6 +10,7 @@ public class CraftALie implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        CraftALieCommands.register();
         LOGGER.info("Craft-A-Lie loaded!");
     }
 }
