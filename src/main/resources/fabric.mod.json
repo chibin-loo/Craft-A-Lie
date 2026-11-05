@@ -1,0 +1,26 @@
+{
+    "schemaVersion": 1,
+    "id": "craftalie",
+    "version": "${version}",
+    "name": "Craft-A-Lie",
+    "description": "A social deduction minigame: find items that match the secret word, and catch the imposter.",
+    "authors": [
+        "Artlu"
+    ],
+    "contact": {
+        "sources": "https://github.com/chibin-loo/Craft-A-Lie"
+    },
+    "license": "MIT",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "com.artlu.craftalie.CraftALie"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.20.1",
+        "minecraft": "~26.3",
+        "java": ">=25",
+        "fabric-api": "*"
+    }
+}
