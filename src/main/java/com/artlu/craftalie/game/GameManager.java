@@ -18,7 +18,6 @@ public final class GameManager {
     /** Set to 3 for real games. 1 lets you test alone. */
     public static final int MIN_PLAYERS = 1;
     /** Gather time in seconds. 30 for testing, 300 (5 min) for real games. */
-    public static final int GATHER_SECONDS = 30;
     /** Where everyone meets up, and how far apart they stand. */
     private static final int MEETING_X = 0;
     private static final int MEETING_Z = 0;
@@ -60,6 +59,7 @@ public final class GameManager {
         broadcast(server, "Craft-A-Lie has started! Round " + round + " — go find something!");
         for (ServerPlayer player : players) {
             revealRole(player);
+            Kit.give(player);
         }
         startGathering(server);
     }
@@ -75,10 +75,10 @@ public final class GameManager {
 
     private static void startGathering(MinecraftServer server) {
         phase = GamePhase.GATHERING;
-        ticksLeft = GATHER_SECONDS * 20;
+        ticksLeft = GameSettings.gatherSeconds * 20;
 
         TIMER_BAR.setProgress(1.0f);
-        TIMER_BAR.setName(Component.literal("Gather time: " + formatTime(GATHER_SECONDS)));
+        TIMER_BAR.setName(Component.literal("Gather time: " + formatTime(GameSettings.gatherSeconds)));
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             TIMER_BAR.addPlayer(player);
         }
@@ -95,7 +95,7 @@ public final class GameManager {
         // Only update the bar once per second; no need to do it every tick
         if (ticksLeft % 20 == 0) {
             int secondsLeft = ticksLeft / 20;
-            TIMER_BAR.setProgress((float) ticksLeft / (GATHER_SECONDS * 20));
+            TIMER_BAR.setProgress((float) ticksLeft / (GameSettings.gatherSeconds * 20));
             TIMER_BAR.setName(Component.literal("Gather time: " + formatTime(secondsLeft)));
             if (secondsLeft == 10) {
                 TIMER_BAR.setColor(BossEvent.BossBarColor.RED);
