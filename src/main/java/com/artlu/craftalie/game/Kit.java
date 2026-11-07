@@ -3,6 +3,8 @@ package com.artlu.craftalie.game;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -19,6 +21,23 @@ import net.minecraft.world.item.enchantment.Enchantments;
 
 public final class Kit {
     private Kit() {
+    }
+
+    private static final String KIT_TAG = "craftalie_kit";
+
+    /**
+     * Adds an invisible tag so we can recognize kit items later (e.g. on death).
+     */
+    private static ItemStack markKit(ItemStack stack) {
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean(KIT_TAG, true);
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        return stack;
+    }
+
+    public static boolean isKit(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        return data != null && data.copyTag().contains(KIT_TAG);
     }
 
     public static void give(ServerPlayer player) {
@@ -45,7 +64,7 @@ public final class Kit {
             tools.add(tool(player, Items.DIAMOND_SHOVEL));
         }
         if (GameSettings.giveSword) {
-            tools.add(makeUnbreakable(new ItemStack(Items.DIAMOND_SWORD)));
+            tools.add(markKit(makeUnbreakable(new ItemStack(Items.DIAMOND_SWORD))));
         }
 
         int slot = 0;
@@ -58,7 +77,7 @@ public final class Kit {
             put(player, 7, new ItemStack(Items.FIREWORK_ROCKET, Math.min(GameSettings.rocketCount, 64)));
         }
         if (GameSettings.foodCount > 0) {
-            put(player, 8, new ItemStack(Items.COOKED_BEEF, Math.min(GameSettings.foodCount, 64)));
+            put(player, 8, markKit(new ItemStack(Items.COOKED_BEEF, Math.min(GameSettings.foodCount, 64))));
         }
 
         if (GameSettings.giveElytra) {
@@ -66,7 +85,7 @@ public final class Kit {
             if (!current.isEmpty()) {
                 player.getInventory().placeItemBackInInventory(current.copy(), Prediction.SERVER_ONLY);
             }
-            player.setItemSlot(EquipmentSlot.CHEST, makeUnbreakable(new ItemStack(Items.ELYTRA)));
+            player.setItemSlot(EquipmentSlot.CHEST, markKit(makeUnbreakable(new ItemStack(Items.ELYTRA))));
         }
     }
 
@@ -95,13 +114,12 @@ public final class Kit {
         }
     }
 
-    /** A diamond tool with the chosen efficiency, unbreakable if enabled. */
     private static ItemStack tool(ServerPlayer player, Item item) {
         ItemStack stack = new ItemStack(item);
         if (GameSettings.efficiencyLevel > 0) {
             stack.enchant(enchantment(player, Enchantments.EFFICIENCY), GameSettings.efficiencyLevel);
         }
-        return makeUnbreakable(stack);
+        return markKit(makeUnbreakable(stack));
     }
 
     private static ItemStack makeUnbreakable(ItemStack stack) {

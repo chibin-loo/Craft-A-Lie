@@ -19,6 +19,7 @@ public final class GameSettings {
     public static int voteSeconds = 45;
     public static int guessSeconds = 30;
     public static int totalRounds = 2;
+    public static boolean soundsEnabled = true;
 
     // Words
     public static ImposterClue imposterClue = ImposterClue.HINT;
@@ -26,6 +27,7 @@ public final class GameSettings {
     public static Set<Difficulty> enabledDifficulties = EnumSet.allOf(Difficulty.class);
 
     // Kit
+    public static boolean keepKitOnDeath = true;
     public static boolean clearInventoryOnGameStart = true;
     public static PickaxeMode pickaxeMode = PickaxeMode.BOTH;
     public static boolean giveSword = true;
