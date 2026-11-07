@@ -69,6 +69,10 @@ public final class GameManager {
         return player.getUUID().equals(imposterId);
     }
 
+    public static boolean isParticipant(ServerPlayer player) {
+        return PARTICIPANTS.contains(player.getUUID());
+    }
+
     // ---------- Starting ----------
 
     public static void start(MinecraftServer server) {
@@ -86,6 +90,7 @@ public final class GameManager {
         round = 1;
 
         broadcast(server, "Craft-A-Lie has started! " + GameSettings.totalRounds + " rounds — go find something!");
+        Sounds.gameStart(server);
         for (ServerPlayer player : players) {
             revealRole(player);
             Kit.give(player);
@@ -107,6 +112,7 @@ public final class GameManager {
         startTimer(server, "Round " + round + " — Gather", BossEvent.BossBarColor.GREEN, GameSettings.gatherSeconds);
 
         if (round > 1) {
+            Sounds.newRound(server);
             for (ServerPlayer player : onlineParticipants(server)) {
                 if (GameSettings.refreshRocketsEachRound) {
                     Kit.refreshRockets(player);
@@ -122,6 +128,7 @@ public final class GameManager {
     private static void endGathering(MinecraftServer server) {
         List<ServerPlayer> players = onlineParticipants(server);
         teleportToMeeting(server.overworld(), players);
+        Sounds.timesUp(server);
 
         for (ServerPlayer player : players) {
             ScreenText.title(player,
@@ -155,6 +162,7 @@ public final class GameManager {
         phase = GamePhase.VOTING;
         Voting.begin(onlineParticipantIds(server), false);
         startTimer(server, "Vote", BossEvent.BossBarColor.PURPLE, GameSettings.voteSeconds);
+        Sounds.voteStart(server);
 
         for (ServerPlayer player : onlineParticipants(server)) {
             ScreenText.title(player,
@@ -195,6 +203,7 @@ public final class GameManager {
 
         boolean changedVote = Voting.hasVoted(voter.getUUID());
         Voting.cast(voter.getUUID(), target.getUUID());
+        Sounds.voteCast(voter);
         voter.sendSystemMessage(Component.literal(
                 (changedVote ? "Changed your vote to " : "You voted for ") + target.getName().getString())
                 .withStyle(ChatFormatting.GRAY));
@@ -258,6 +267,7 @@ public final class GameManager {
     private static void startGuessing(MinecraftServer server, String votedName) {
         phase = GamePhase.GUESSING;
         startTimer(server, "Imposter's guess", BossEvent.BossBarColor.YELLOW, GameSettings.guessSeconds);
+        Sounds.caught(server);
         broadcast(server, votedName + " WAS the imposter! They get one guess at the word to steal the win...");
 
         ServerPlayer imposter = server.getPlayerList().getPlayer(imposterId);
@@ -299,6 +309,7 @@ public final class GameManager {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ScreenText.title(player, title, subtitle, 10, 100, 30);
         }
+        Sounds.gameOver(server, imposterWins);
         broadcast(server, reason);
         broadcast(server, "The imposter was " + imposterName + ". The word was " + word + ".");
         restoreSpectators(server);
@@ -371,6 +382,7 @@ public final class GameManager {
                 Component.literal("KNOCKED OUT!").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
                 Component.literal("Sent back to the meeting spot — you kept your items"),
                 5, 50, 15);
+        Sounds.knockedOut(player);
         return false;
     }
 
@@ -441,6 +453,9 @@ public final class GameManager {
             if (secondsLeft <= 10) {
                 TIMER_BAR.setColor(BossEvent.BossBarColor.RED);
             }
+            if (secondsLeft >= 1 && secondsLeft <= 5) {
+                Sounds.countdown(server, secondsLeft);
+            }
         }
 
         if (ticksLeft <= 0) {
@@ -480,6 +495,7 @@ public final class GameManager {
     // ---------- Roles ----------
 
     public static void revealRole(ServerPlayer player) {
+        Sounds.roleReveal(player, isImposter(player));
         if (isImposter(player)) {
             String clue = imposterClueText();
             ScreenText.title(player,

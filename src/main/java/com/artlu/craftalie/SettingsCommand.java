@@ -70,7 +70,8 @@ public final class SettingsCommand {
         set.then(boolSetting("refreshrockets", () -> GameSettings.refreshRocketsEachRound,
                 v -> GameSettings.refreshRocketsEachRound = v));
         set.then(intSetting("food", 0, 64, () -> GameSettings.foodCount, v -> GameSettings.foodCount = v));
-
+        set.then(boolSetting("sounds", () -> GameSettings.soundsEnabled, v -> GameSettings.soundsEnabled = v));
+        set.then(boolSetting("keepkit", () -> GameSettings.keepKitOnDeath, v -> GameSettings.keepKitOnDeath = v));
         return set;
     }
 

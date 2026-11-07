@@ -14,12 +14,11 @@ public final class GameEvents {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(
                 (entity, source, amount) -> GameManager.allowDamage(entity, source));
 
-        // Return false = cancel the death
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayer player) {
-                return GameManager.allowDeath(player);
+                KitKeeper.beforeDeath(player);
             }
-            return true;
+            return true; // always let the death happen normally
         });
 
         ServerPlayConnectionEvents.JOIN.register(
