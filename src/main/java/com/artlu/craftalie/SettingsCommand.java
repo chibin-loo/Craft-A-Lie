@@ -46,7 +46,7 @@ public final class SettingsCommand {
         set.then(intSetting("vote", 10, 300, () -> GameSettings.voteSeconds, v -> GameSettings.voteSeconds = v));
         set.then(intSetting("guess", 10, 120, () -> GameSettings.guessSeconds, v -> GameSettings.guessSeconds = v));
         set.then(intSetting("rounds", 1, 10, () -> GameSettings.totalRounds, v -> GameSettings.totalRounds = v));
-
+        set.then(boolSetting("pvp", () -> GameSettings.allowPvp, v -> GameSettings.allowPvp = v));
         // Words
         set.then(enumSetting("clue", GameSettings.ImposterClue.values(),
                 () -> GameSettings.imposterClue, v -> GameSettings.imposterClue = v));

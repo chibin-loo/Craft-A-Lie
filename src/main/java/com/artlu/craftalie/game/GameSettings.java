@@ -37,6 +37,7 @@ public final class GameSettings {
     public static int rocketCount = 2;
     public static int foodCount = 64;
     public static boolean refreshRocketsEachRound = true;
+    public static boolean allowPvp = false;
 
     private GameSettings() {
     }

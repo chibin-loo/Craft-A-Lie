@@ -1,5 +1,6 @@
 package com.artlu.craftalie.game;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -16,10 +17,13 @@ import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class GameManager {
-
     private static final int MEETING_X = 0;
     private static final int MEETING_Z = 0;
     private static final double CIRCLE_RADIUS = 4.0;
@@ -27,14 +31,20 @@ public final class GameManager {
     private static final Random RANDOM = new Random();
     private static final ServerBossEvent TIMER_BAR = new ServerBossEvent(
             UUID.randomUUID(),
-            Component.literal("Gather time"),
+            Component.literal(""),
             BossEvent.BossBarColor.GREEN,
             BossEvent.BossBarOverlay.PROGRESS);
+
+    /** Everyone who was online when the game started. */
+    private static final Set<UUID> PARTICIPANTS = new HashSet<>();
+    /** People who joined mid-game and are watching. */
+    private static final Set<UUID> SPECTATORS = new HashSet<>();
 
     private static GamePhase phase = GamePhase.WAITING;
     private static int round = 0;
     private static WordEntry currentWord = null;
     private static UUID imposterId = null;
+    private static String imposterName = "nobody";
 
     private static int ticksLeft = 0;
     private static int totalTicks = 0;
@@ -64,8 +74,15 @@ public final class GameManager {
     public static void start(MinecraftServer server) {
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
 
+        PARTICIPANTS.clear();
+        SPECTATORS.clear();
+        for (ServerPlayer player : players) {
+            PARTICIPANTS.add(player.getUUID());
+        }
+
         currentWord = WordList.random(RANDOM);
         imposterId = pickImposter(players);
+        imposterName = nameOf(server, imposterId);
         round = 1;
 
         broadcast(server, "Craft-A-Lie has started! " + GameSettings.totalRounds + " rounds — go find something!");
@@ -90,7 +107,7 @@ public final class GameManager {
         startTimer(server, "Round " + round + " — Gather", BossEvent.BossBarColor.GREEN, GameSettings.gatherSeconds);
 
         if (round > 1) {
-            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            for (ServerPlayer player : onlineParticipants(server)) {
                 if (GameSettings.refreshRocketsEachRound) {
                     Kit.refreshRockets(player);
                 }
@@ -103,7 +120,7 @@ public final class GameManager {
     }
 
     private static void endGathering(MinecraftServer server) {
-        List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        List<ServerPlayer> players = onlineParticipants(server);
         teleportToMeeting(server.overworld(), players);
 
         for (ServerPlayer player : players) {
@@ -136,10 +153,10 @@ public final class GameManager {
 
     private static void startVoting(MinecraftServer server) {
         phase = GamePhase.VOTING;
-        Voting.begin(onlinePlayerIds(server), false);
+        Voting.begin(onlineParticipantIds(server), false);
         startTimer(server, "Vote", BossEvent.BossBarColor.PURPLE, GameSettings.voteSeconds);
 
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+        for (ServerPlayer player : onlineParticipants(server)) {
             ScreenText.title(player,
                     Component.literal("VOTE!").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD),
                     Component.literal("Who is the imposter? Click a name in chat"),
@@ -148,7 +165,6 @@ public final class GameManager {
         sendBallot(server);
     }
 
-    /** Sends a chat line where each candidate's name is a clickable vote button. */
     private static void sendBallot(MinecraftServer server) {
         MutableComponent line = Component.literal("Vote: ").withStyle(ChatFormatting.GOLD);
         for (UUID id : Voting.candidates()) {
@@ -162,17 +178,17 @@ public final class GameManager {
         server.getPlayerList().broadcastSystemMessage(line, false);
     }
 
-    /**
-     * Called by /craftalie vote. Returns an error message, or null if it worked.
-     */
     public static String vote(MinecraftServer server, ServerPlayer voter, ServerPlayer target) {
         if (phase != GamePhase.VOTING) {
             return "It's not voting time.";
         }
+        if (!PARTICIPANTS.contains(voter.getUUID())) {
+            return "Spectators can't vote.";
+        }
         if (!Voting.isCandidate(target.getUUID())) {
             return target.getName().getString() + " can't be voted for right now.";
         }
-        boolean solo = server.getPlayerList().getPlayers().size() == 1;
+        boolean solo = onlineParticipants(server).size() == 1;
         if (!solo && voter.getUUID().equals(target.getUUID())) {
             return "You can't vote for yourself.";
         }
@@ -186,7 +202,7 @@ public final class GameManager {
             broadcast(server, voter.getName().getString() + " has voted.");
         }
 
-        if (Voting.everyoneVoted(onlinePlayerIds(server))) {
+        if (Voting.everyoneVoted(onlineParticipantIds(server))) {
             finishVoting(server);
         }
         return null;
@@ -239,10 +255,10 @@ public final class GameManager {
 
     // ---------- Imposter's guess ----------
 
-    private static void startGuessing(MinecraftServer server, String imposterName) {
+    private static void startGuessing(MinecraftServer server, String votedName) {
         phase = GamePhase.GUESSING;
         startTimer(server, "Imposter's guess", BossEvent.BossBarColor.YELLOW, GameSettings.guessSeconds);
-        broadcast(server, imposterName + " WAS the imposter! They get one guess at the word to steal the win...");
+        broadcast(server, votedName + " WAS the imposter! They get one guess at the word to steal the win...");
 
         ServerPlayer imposter = server.getPlayerList().getPlayer(imposterId);
         if (imposter != null) {
@@ -253,9 +269,6 @@ public final class GameManager {
         }
     }
 
-    /**
-     * Called by /craftalie guess. Returns an error message, or null if it worked.
-     */
     public static String guess(MinecraftServer server, ServerPlayer player, String text) {
         if (phase != GamePhase.GUESSING) {
             return "You can't guess right now.";
@@ -276,7 +289,6 @@ public final class GameManager {
     // ---------- Ending ----------
 
     private static void endGame(MinecraftServer server, boolean imposterWins, String reason) {
-        String imposterName = nameOf(server, imposterId);
         String word = currentWord.word();
 
         Component title = imposterWins
@@ -289,7 +301,105 @@ public final class GameManager {
         }
         broadcast(server, reason);
         broadcast(server, "The imposter was " + imposterName + ". The word was " + word + ".");
+        restoreSpectators(server);
         reset();
+    }
+
+    public static void stop(MinecraftServer server) {
+        restoreSpectators(server);
+        reset();
+        broadcast(server, "Craft-A-Lie has been stopped.");
+    }
+
+    private static void restoreSpectators(MinecraftServer server) {
+        for (UUID id : SPECTATORS) {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player != null) {
+                player.setGameMode(GameType.SURVIVAL);
+            }
+        }
+    }
+
+    public static void reset() {
+        phase = GamePhase.WAITING;
+        round = 0;
+        currentWord = null;
+        imposterId = null;
+        imposterName = "nobody";
+        ticksLeft = 0;
+        totalTicks = 0;
+        timerLabel = "";
+        PARTICIPANTS.clear();
+        SPECTATORS.clear();
+        Voting.clear();
+        TIMER_BAR.removeAllPlayers();
+    }
+
+    // ---------- Safety: damage, death, join, leave ----------
+
+    /** Return false to cancel damage. */
+    public static boolean allowDamage(LivingEntity entity, DamageSource source) {
+        if (!isRunning() || !(entity instanceof ServerPlayer player) || !PARTICIPANTS.contains(player.getUUID())) {
+            return true;
+        }
+        // Nobody gets hurt while talking or voting
+        if (phase == GamePhase.MEETING || phase == GamePhase.VOTING || phase == GamePhase.GUESSING) {
+            return false;
+        }
+        // No player-vs-player unless the host turned it on (arrows count as the
+        // shooter)
+        if (!GameSettings.allowPvp && source.getEntity() instanceof Player attacker && attacker != player) {
+            return false;
+        }
+        return true;
+    }
+
+    /** Return false to cancel death. Players get "knocked out" instead of dying. */
+    public static boolean allowDeath(ServerPlayer player) {
+        if (!isRunning() || !PARTICIPANTS.contains(player.getUUID())) {
+            return true;
+        }
+        player.setHealth(player.getMaxHealth());
+        player.clearFire();
+        player.resetFallDistance();
+
+        MinecraftServer server = player.level().getServer();
+        if (server != null) {
+            teleportToMeeting(server.overworld(), List.of(player));
+        }
+        ScreenText.title(player,
+                Component.literal("KNOCKED OUT!").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
+                Component.literal("Sent back to the meeting spot — you kept your items"),
+                5, 50, 15);
+        return false;
+    }
+
+    public static void onJoin(ServerPlayer player, MinecraftServer server) {
+        if (!isRunning()) {
+            return;
+        }
+        TIMER_BAR.addPlayer(player);
+
+        if (PARTICIPANTS.contains(player.getUUID())) {
+            player.sendSystemMessage(Component.literal("Welcome back! The game is still going.")
+                    .withStyle(ChatFormatting.YELLOW));
+            revealRole(player);
+        } else {
+            SPECTATORS.add(player.getUUID());
+            player.setGameMode(GameType.SPECTATOR);
+            player.sendSystemMessage(Component.literal(
+                    "A game of Craft-A-Lie is in progress — you're spectating until the next one.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+    }
+
+    public static void onLeave(ServerPlayer player, MinecraftServer server) {
+        if (!isRunning()) {
+            return;
+        }
+        if (player.getUUID().equals(imposterId)) {
+            endGame(server, false, "The imposter left the game — crew wins!");
+        }
     }
 
     // ---------- Timer ----------
@@ -308,10 +418,18 @@ public final class GameManager {
         }
     }
 
-    /** Called 20 times per second by Fabric. */
     public static void tick(MinecraftServer server) {
         if (phase == GamePhase.WAITING) {
             return;
+        }
+
+        // If a voter left, don't keep waiting for them
+        if (phase == GamePhase.VOTING) {
+            List<UUID> voters = onlineParticipantIds(server);
+            if (!voters.isEmpty() && Voting.everyoneVoted(voters)) {
+                finishVoting(server);
+                return;
+            }
         }
 
         ticksLeft--;
@@ -382,29 +500,24 @@ public final class GameManager {
         }
     }
 
-    // ---------- Stopping ----------
-
-    public static void stop(MinecraftServer server) {
-        reset();
-        broadcast(server, "Craft-A-Lie has been stopped.");
-    }
-
-    public static void reset() {
-        phase = GamePhase.WAITING;
-        round = 0;
-        currentWord = null;
-        imposterId = null;
-        ticksLeft = 0;
-        totalTicks = 0;
-        timerLabel = "";
-        Voting.clear();
-        TIMER_BAR.removeAllPlayers();
+    private static String imposterClueText() {
+        return switch (GameSettings.imposterClue) {
+            case HINT -> "Hint: " + currentWord.hint();
+            case CATEGORY -> "Category: " + currentWord.category().displayName();
+            case BOTH -> currentWord.category().displayName() + " — Hint: " + currentWord.hint();
+        };
     }
 
     // ---------- Helpers ----------
 
-    private static List<UUID> onlinePlayerIds(MinecraftServer server) {
-        return server.getPlayerList().getPlayers().stream().map(ServerPlayer::getUUID).toList();
+    private static List<ServerPlayer> onlineParticipants(MinecraftServer server) {
+        return server.getPlayerList().getPlayers().stream()
+                .filter(p -> PARTICIPANTS.contains(p.getUUID()))
+                .toList();
+    }
+
+    private static List<UUID> onlineParticipantIds(MinecraftServer server) {
+        return onlineParticipants(server).stream().map(ServerPlayer::getUUID).toList();
     }
 
     private static String nameOf(MinecraftServer server, UUID id) {
@@ -421,13 +534,5 @@ public final class GameManager {
 
     private static void broadcast(MinecraftServer server, String message) {
         server.getPlayerList().broadcastSystemMessage(Component.literal(message), false);
-    }
-
-    private static String imposterClueText() {
-        return switch (GameSettings.imposterClue) {
-            case HINT -> "Hint: " + currentWord.hint();
-            case CATEGORY -> "Category: " + currentWord.category().displayName();
-            case BOTH -> currentWord.category().displayName() + " — Hint: " + currentWord.hint();
-        };
     }
 }
