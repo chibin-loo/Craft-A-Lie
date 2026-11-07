@@ -1,7 +1,18 @@
 package com.artlu.craftalie.game;
 
 public final class GameSettings {
-    public enum PickaxeMode { SILK_TOUCH, REGULAR, BOTH }
+    public enum PickaxeMode {
+        SILK_TOUCH, REGULAR, BOTH
+    }
+
+    // Words
+    public enum ImposterClue {
+        HINT, CATEGORY, BOTH
+    }
+
+    public static ImposterClue imposterClue = ImposterClue.HINT;
+    public static java.util.Set<WordCategory> enabledCategories = java.util.EnumSet.allOf(WordCategory.class);
+    public static java.util.Set<Difficulty> enabledDifficulties = java.util.EnumSet.allOf(Difficulty.class);
 
     // Timing
     public static int gatherSeconds = 30; // 300 for real games
@@ -12,11 +23,12 @@ public final class GameSettings {
     public static boolean giveSword = true;
     public static boolean giveAxe = true;
     public static boolean giveShovel = true;
-    public static int efficiencyLevel = 3;      // 0 = none
+    public static int efficiencyLevel = 3; // 0 = none
     public static boolean unbreakableTools = true;
     public static boolean giveElytra = true;
-    public static int rocketCount = 2;         // 0 = none, max 64
-    public static int foodCount = 64;           // steak, 0 = none
+    public static int rocketCount = 2; // 0 = none, max 64
+    public static int foodCount = 64; // steak, 0 = none
 
-    private GameSettings() {}
+    private GameSettings() {
+    }
 }

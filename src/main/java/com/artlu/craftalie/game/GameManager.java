@@ -25,11 +25,10 @@ public final class GameManager {
 
     private static final Random RANDOM = new Random();
     private static final ServerBossEvent TIMER_BAR = new ServerBossEvent(
-        UUID.randomUUID(),
-        Component.literal("Gather time"),
-        BossEvent.BossBarColor.GREEN,
-        BossEvent.BossBarOverlay.PROGRESS
-    );
+            UUID.randomUUID(),
+            Component.literal("Gather time"),
+            BossEvent.BossBarColor.GREEN,
+            BossEvent.BossBarOverlay.PROGRESS);
 
     private static GamePhase phase = GamePhase.WAITING;
     private static int round = 0;
@@ -37,11 +36,20 @@ public final class GameManager {
     private static UUID imposterId = null;
     private static int ticksLeft = 0;
 
-    private GameManager() {}
+    private GameManager() {
+    }
 
-    public static GamePhase getPhase() { return phase; }
-    public static int getRound() { return round; }
-    public static boolean isRunning() { return phase != GamePhase.WAITING; }
+    public static GamePhase getPhase() {
+        return phase;
+    }
+
+    public static int getRound() {
+        return round;
+    }
+
+    public static boolean isRunning() {
+        return phase != GamePhase.WAITING;
+    }
 
     public static boolean isImposter(ServerPlayer player) {
         return player.getUUID().equals(imposterId);
@@ -117,14 +125,16 @@ public final class GameManager {
 
         for (ServerPlayer player : players) {
             ScreenText.title(player,
-                Component.literal("TIME'S UP!").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD),
-                Component.literal("Show everyone what you brought"),
-                5, 60, 15);
+                    Component.literal("TIME'S UP!").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD),
+                    Component.literal("Show everyone what you brought"),
+                    5, 60, 15);
         }
         broadcast(server, "Time's up! Hold up your item and explain how it relates.");
     }
 
-    /** Spreads players in a circle around the meeting point, all facing the middle. */
+    /**
+     * Spreads players in a circle around the meeting point, all facing the middle.
+     */
     private static void teleportToMeeting(ServerLevel level, List<ServerPlayer> players) {
         int count = players.size();
         for (int i = 0; i < count; i++) {
@@ -149,21 +159,22 @@ public final class GameManager {
 
     public static void revealRole(ServerPlayer player) {
         if (isImposter(player)) {
+            String clue = imposterClueText();
             ScreenText.title(player,
-                Component.literal("IMPOSTER").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
-                Component.literal("Hint: " + currentWord.hint()).withStyle(ChatFormatting.GOLD),
-                10, 80, 20);
+                    Component.literal("IMPOSTER").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
+                    Component.literal(clue).withStyle(ChatFormatting.GOLD),
+                    10, 80, 20);
             player.sendSystemMessage(Component.literal(
-                "You are the IMPOSTER. Hint: " + currentWord.hint() + ". Blend in!")
-                .withStyle(ChatFormatting.RED));
+                    "You are the IMPOSTER. " + clue + ". Blend in!")
+                    .withStyle(ChatFormatting.RED));
         } else {
             ScreenText.title(player,
-                Component.literal(currentWord.word()).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
-                Component.literal("You are NOT the imposter").withStyle(ChatFormatting.GRAY),
-                10, 80, 20);
+                    Component.literal(currentWord.word()).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
+                    Component.literal("You are NOT the imposter").withStyle(ChatFormatting.GRAY),
+                    10, 80, 20);
             player.sendSystemMessage(Component.literal(
-                "Your word is: " + currentWord.word() + ". Find something related!")
-                .withStyle(ChatFormatting.GREEN));
+                    "Your word is: " + currentWord.word() + ". Find something related!")
+                    .withStyle(ChatFormatting.GREEN));
         }
     }
 
@@ -192,5 +203,13 @@ public final class GameManager {
 
     private static void broadcast(MinecraftServer server, String message) {
         server.getPlayerList().broadcastSystemMessage(Component.literal(message), false);
+    }
+
+    private static String imposterClueText() {
+        return switch (GameSettings.imposterClue) {
+            case HINT -> "Hint: " + currentWord.hint();
+            case CATEGORY -> "Category: " + currentWord.category().displayName();
+            case BOTH -> currentWord.category().displayName() + " — Hint: " + currentWord.hint();
+        };
     }
 }
