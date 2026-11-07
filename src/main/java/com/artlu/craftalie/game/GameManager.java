@@ -29,7 +29,7 @@ public final class GameManager {
     private static final Random RANDOM = new Random();
     private static final ServerBossEvent TIMER_BAR = new ServerBossEvent(
             UUID.randomUUID(),
-            Component.literal(""),
+            Component.literal("Gather time"),
             BossEvent.BossBarColor.GREEN,
             BossEvent.BossBarOverlay.PROGRESS);
 
@@ -267,7 +267,7 @@ public final class GameManager {
         }
         String attempt = text.trim();
         String name = player.getName().getString();
-        if (attempt.equalsIgnoreCase(currentWord.word())) {
+        if (currentWord.matches(attempt)) {
             endGame(server, true, name + " guessed \"" + attempt + "\" — correct! They steal the win!");
         } else {
             endGame(server, false, name + " guessed \"" + attempt + "\" — wrong!");
@@ -365,6 +365,7 @@ public final class GameManager {
 
     public static void revealRole(ServerPlayer player) {
         if (isImposter(player)) {
+            String clue = imposterClueText();
             ScreenText.title(player,
                     Component.literal("IMPOSTER").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
                     Component.literal("Hint: " + currentWord.hint()).withStyle(ChatFormatting.GOLD),
@@ -422,5 +423,13 @@ public final class GameManager {
 
     private static void broadcast(MinecraftServer server, String message) {
         server.getPlayerList().broadcastSystemMessage(Component.literal(message), false);
+    }
+
+    private static String imposterClueText() {
+        return switch (GameSettings.imposterClue) {
+            case HINT -> "Hint: " + currentWord.hint();
+            case CATEGORY -> "Category: " + currentWord.category().displayName();
+            case BOTH -> currentWord.category().displayName() + " — Hint: " + currentWord.hint();
+        };
     }
 }

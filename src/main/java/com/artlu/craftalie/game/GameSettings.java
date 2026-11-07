@@ -5,6 +5,15 @@ public final class GameSettings {
         SILK_TOUCH, REGULAR, BOTH
     }
 
+    // Words
+    public enum ImposterClue {
+        HINT, CATEGORY, BOTH
+    }
+
+    public static ImposterClue imposterClue = ImposterClue.HINT;
+    public static java.util.Set<WordCategory> enabledCategories = java.util.EnumSet.allOf(WordCategory.class);
+    public static java.util.Set<Difficulty> enabledDifficulties = java.util.EnumSet.allOf(Difficulty.class);
+
     // Timing
     public static int gatherSeconds = 30; // 300 for real games
     public static int meetingSeconds = 30; // 60–90 for real games
