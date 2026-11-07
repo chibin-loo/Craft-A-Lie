@@ -1,6 +1,7 @@
 package com.artlu.craftalie;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.commands.Commands;
 import static net.minecraft.commands.Commands.literal;
 import static net.minecraft.commands.Commands.argument;
 
@@ -8,6 +9,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.EntityArgument;
 import com.artlu.craftalie.game.GameManager;
+import com.artlu.craftalie.game.GameSettings;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 
@@ -30,8 +32,10 @@ public final class CraftALieCommands {
         dispatcher.register(
                 literal("craftalie")
                         .executes(CraftALieCommands::help)
-                        .then(literal("start").executes(CraftALieCommands::start))
-                        .then(literal("stop").executes(CraftALieCommands::stop))
+                        .then(literal("start").requires(CraftALieCommands::isHost).executes(CraftALieCommands::start))
+                        .then(literal("stop").requires(CraftALieCommands::isHost).executes(CraftALieCommands::stop))
+                        .then(SettingsCommand.buildSet().requires(CraftALieCommands::isHost))
+                        .then(SettingsCommand.buildList())
                         .then(literal("status").executes(CraftALieCommands::status))
                         .then(literal("role").executes(CraftALieCommands::role))
                         .then(literal("vote")
@@ -41,9 +45,20 @@ public final class CraftALieCommands {
                                         .executes(CraftALieCommands::guess))));
     }
 
+    /** The world's host (Essential / singleplayer owner) or a server op. */
+    static boolean isHost(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player != null && source.getServer().isSingleplayerOwner(player.nameAndId())) {
+            return true;
+        }
+        return Commands.LEVEL_GAMEMASTERS.check(source.permissions());
+    }
+
     private static int help(CommandContext<CommandSourceStack> context) {
-        context.getSource().sendSuccess(
-                () -> Component.literal("Craft-A-Lie commands: /craftalie start, stop, status"), false);
+        context.getSource().sendSuccess(() -> Component.literal(
+                "Craft-A-Lie: /craftalie role, vote, guess, status, settings"
+                        + (isHost(context.getSource()) ? " | Host: start, stop, set" : "")),
+                false);
         return 1;
     }
 
@@ -56,8 +71,8 @@ public final class CraftALieCommands {
         }
 
         int playerCount = source.getServer().getPlayerList().getPlayers().size();
-        if (playerCount < GameManager.MIN_PLAYERS) {
-            source.sendFailure(Component.literal("Need at least " + GameManager.MIN_PLAYERS + " players to start."));
+        if (playerCount < GameSettings.minPlayers) {
+            source.sendFailure(Component.literal("Need at least " + GameSettings.minPlayers + " players to start."));
             return 0;
         }
 
