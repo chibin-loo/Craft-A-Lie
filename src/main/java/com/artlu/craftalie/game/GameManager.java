@@ -19,8 +19,6 @@ import net.minecraft.world.BossEvent;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class GameManager {
-    /** Set to 3 for real games. 1 lets you test alone. */
-    public static final int MIN_PLAYERS = 1;
 
     private static final int MEETING_X = 0;
     private static final int MEETING_Z = 0;
@@ -368,10 +366,10 @@ public final class GameManager {
             String clue = imposterClueText();
             ScreenText.title(player,
                     Component.literal("IMPOSTER").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
-                    Component.literal("Hint: " + currentWord.hint()).withStyle(ChatFormatting.GOLD),
+                    Component.literal(clue).withStyle(ChatFormatting.GOLD),
                     10, 80, 20);
             player.sendSystemMessage(Component.literal(
-                    "You are the IMPOSTER. Hint: " + currentWord.hint() + ". Blend in!")
+                    "You are the IMPOSTER. " + clue + ". Blend in!")
                     .withStyle(ChatFormatting.RED));
         } else {
             ScreenText.title(player,
