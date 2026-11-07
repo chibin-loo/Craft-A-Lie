@@ -18,7 +18,8 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 public final class Kit {
-    private Kit() {}
+    private Kit() {
+    }
 
     public static void give(ServerPlayer player) {
         if (GameSettings.clearInventoryOnGameStart) {
@@ -78,6 +79,22 @@ public final class Kit {
         }
     }
 
+    /** Tops rockets back up to the configured amount (never gives extra). */
+    public static void refreshRockets(ServerPlayer player) {
+        int target = Math.min(GameSettings.rocketCount, 64);
+        int have = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.is(Items.FIREWORK_ROCKET)) {
+                have += stack.getCount();
+            }
+        }
+        if (have < target) {
+            player.getInventory().placeItemBackInInventory(
+                    new ItemStack(Items.FIREWORK_ROCKET, target - have), Prediction.SERVER_ONLY);
+        }
+    }
+
     /** A diamond tool with the chosen efficiency, unbreakable if enabled. */
     private static ItemStack tool(ServerPlayer player, Item item) {
         ItemStack stack = new ItemStack(item);
@@ -94,7 +111,9 @@ public final class Kit {
         return stack;
     }
 
-    /** Enchantments are data-driven, so we look them up from the world's registry. */
+    /**
+     * Enchantments are data-driven, so we look them up from the world's registry.
+     */
     private static Holder<Enchantment> enchantment(ServerPlayer player, ResourceKey<Enchantment> key) {
         return player.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(key);
     }
